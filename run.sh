@@ -23,6 +23,10 @@ EOF
 # Pass any extra env vars the user has set
 [ -n "$ANTHROPIC_API_KEY" ] && echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" >> "$ENV_FILE"
 
+# Open Sublime Text with the working directory
+SUBL="$(command -v subl 2>/dev/null || echo "/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl")"
+[ -x "$SUBL" ] && "$SUBL" --add "$HOST_GIT_DIR"
+
 # Build if needed, then run
 cd "$SCRIPT_DIR"
 

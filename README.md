@@ -22,7 +22,7 @@ Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) inside a Docke
 ```bash
 git clone https://github.com/nekrut/claude-code-docker.git
 cd claude-code-docker
-./run.sh              # interactive session
+./run.sh              # interactive session + opens Sublime Text
 ./run.sh -p "prompt"  # one-shot
 ```
 
@@ -125,6 +125,10 @@ Set in `.env` or export before running:
 | `GALAXY_URL` | `https://usegalaxy.org` | Galaxy server URL |
 | `GALAXY_API_KEY` | (empty) | Galaxy API key |
 | `ANTHROPIC_API_KEY` | (empty) | Only needed if not using `claude login` |
+
+### Sublime Text
+
+`run.sh` automatically opens Sublime Text with the working directory added as a project. It looks for `subl` on PATH, falling back to `/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl` on macOS. Skips silently if Sublime isn't installed.
 
 ### Rebuild after changes
 
