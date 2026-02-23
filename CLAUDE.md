@@ -6,7 +6,7 @@ Dockerized Claude Code for macOS. Runs claude-code in isolated container with ho
 ## Key architecture decisions
 - **Auth**: OAuth credentials extracted from macOS Keychain (`Claude Code-credentials`) by `run.sh` and written to `~/.claude/.credentials.json` before container start. Newer Claude Code versions store creds in Keychain, not file.
 - **GitHub auth**: `GH_TOKEN` env var from `.env` file. Host keyring not accessible from container, so `gh auth login` tokens don't work — must use personal access token with `repo` scope.
-- **Config**: Both `~/.claude/` (dir) and `~/.claude.json` (file) must be mounted — claude-code uses both.
+- **`.claude.json` persistence**: Single-file Docker bind mounts corrupt when the file is rewritten. Solution: mount `~/.claude.json` ro to `/tmp/.claude.json.host`, copy into `~/.claude/.claude.json` on first run, symlink `~/.claude.json` → `~/.claude/.claude.json`. Onboarding state (theme, login) persists via the rw `~/.claude/` bind mount.
 - **Persistence**: Named Docker volumes for pip (`~/.local`), conda (`/opt/conda`), uv cache. Survives container restarts.
 - **Conda seed**: `/opt/conda` is a named volume (starts empty). Image keeps a copy at `/opt/conda.seed`, entrypoint seeds volume on first run.
 - **SSH**: Host `~/.ssh` mounted read-only. Entrypoint copies to `/tmp/.ssh` with correct perms.
@@ -18,8 +18,8 @@ Dockerized Claude Code for macOS. Runs claude-code in isolated container with ho
 ## File structure
 - `Dockerfile` — image definition (node:20-bookworm base)
 - `docker-compose.yml` — service config, volumes, bind mounts
-- `entrypoint.sh` — runtime setup (SSH, conda seed, galaxy-skills, MCP registration, optional updates)
-- `run.sh` — host-side launcher (writes .env from Keychain, clones skills, opens editor, runs container)
+- `entrypoint.sh` — runtime setup (.claude.json symlink, SSH, conda seed, galaxy-skills, MCP registration, optional updates)
+- `run.sh` — host-side launcher (extracts Keychain creds, writes .env, clones skills, runs container)
 - `.env` / `.env.example` — Galaxy credentials + GH_TOKEN (gitignored)
 
 ## Shell shortcuts (in ~/.zshrc)
@@ -33,3 +33,5 @@ Dockerized Claude Code for macOS. Runs claude-code in isolated container with ho
 - `docker compose run` does NOT map ports by default — must use `--service-ports` flag for Galaxy (9090) and Quarto preview (4200).
 - gh config directory mount shows empty inside container. Mount individual files instead.
 - Shell shortcuts (`cdl`/`cdlp`) require `source ~/.zshrc` or new terminal after adding to zshrc.
+- First interactive run requires onboarding (theme + login). State persists in `~/.claude/.claude.json` after that.
+- Single-file bind mounts (like `~/.claude.json`) corrupt when Docker rewrites them. Always mount ro and copy/symlink.

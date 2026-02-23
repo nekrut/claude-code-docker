@@ -7,7 +7,7 @@ Based on [nekrut/claude-docker-linux](https://github.com/nekrut/claude-docker-li
 ## Prerequisites
 
 - [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-- `claude login` completed on host (creates `~/.claude/.credentials.json`)
+- `claude login` completed on host (stores OAuth token in macOS Keychain)
 - GitHub CLI authenticated on host (`gh auth login`)
 - SSH keys in `~/.ssh/` (for git push)
 - GitHub personal access token with `repo` scope ([create here](https://github.com/settings/tokens)) for in-container `gh` usage
@@ -53,10 +53,11 @@ cdlp                         # with ports 9090 + 4200 mapped (only one at a time
 
 Or without the shortcut:
 ```bash
-cd ~/git/claude-code-docker
-./run.sh                     # interactive session + opens Sublime Text
+./run.sh                     # interactive session
 ./run.sh -p "prompt"         # one-shot
 ```
+
+First run shows an onboarding screen (theme, login). Complete it once — the state persists via `~/.claude/`.
 
 ## What's in the container
 
@@ -91,7 +92,7 @@ The `gh` CLI inside the container uses `GH_TOKEN` from `.env`. Host-side keyring
 |------|-----------|------|
 | `~/git` | `/workspace` | rw |
 | `~/.claude` | `/home/node/.claude` | rw |
-| `~/.claude.json` | `/home/node/.claude.json` | rw |
+| `~/.claude.json` | `/tmp/.claude.json.host` | ro |
 | `~/.gitconfig` | `/home/node/.gitconfig` | ro |
 | `~/.config/gh/hosts.yml` | `/home/node/.config/gh/hosts.yml` | ro |
 | `~/.config/gh/config.yml` | `/home/node/.config/gh/config.yml` | ro |
@@ -110,12 +111,13 @@ Packages installed via `pip install`, `conda install`, or `uv` persist across co
 ## Entrypoint
 
 On each container start, `entrypoint.sh`:
-1. Copies SSH keys to writable dir with correct permissions
-2. Seeds conda volume from image (first run only)
-3. Clones or pulls latest galaxy-skills
-4. Registers Galaxy MCP server (if not already configured)
-5. Optionally updates claude-code and galaxy-mcp (when `UPDATE=1`)
-6. Launches `claude --dangerously-skip-permissions`
+1. Symlinks `.claude.json` into `~/.claude/` for persistence (single-file bind mounts corrupt on rewrite)
+2. Copies SSH keys to writable dir with correct permissions
+3. Seeds conda volume from image (first run only)
+4. Clones or pulls latest galaxy-skills
+5. Registers Galaxy MCP server (if not already configured)
+6. Optionally updates claude-code and galaxy-mcp (when `UPDATE=1`)
+7. Launches `claude --dangerously-skip-permissions`
 
 ## Ports
 
