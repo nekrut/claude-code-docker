@@ -3,6 +3,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Write Claude credentials from Keychain ONLY if file doesn't already exist
+# (container-side `claude login` creates this file with correct scopes)
+if [ ! -f "$HOME/.claude/.credentials.json" ]; then
+    CREDS=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null || true)
+    if [ -n "$CREDS" ]; then
+        echo "$CREDS" > "$HOME/.claude/.credentials.json"
+    fi
+fi
+
 # Galaxy API key: try macOS Keychain first, fall back to env var
 if command -v security &>/dev/null; then
     GALAXY_API_KEY="${GALAXY_API_KEY:-$(security find-generic-password -s "galaxy-api-key" -w 2>/dev/null || echo "")}"
@@ -24,9 +33,13 @@ if [ ! -d "$SKILLS_DIR" ]; then
     git clone https://github.com/galaxyproject/galaxy-skills.git "$SKILLS_DIR" 2>/dev/null || echo "Warning: could not clone galaxy-skills"
 fi
 
-# Open editor
-subl --add ~/git 2>/dev/null || true
+# Handle --service-ports flag
+DOCKER_ARGS="--rm"
+if [ "$1" = "--service-ports" ]; then
+    DOCKER_ARGS="--rm --service-ports"
+    shift
+fi
 
 # Run claude container
 cd "$SCRIPT_DIR"
-docker compose run --rm claude "$@"
+docker compose run $DOCKER_ARGS claude "$@"

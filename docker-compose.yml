@@ -9,7 +9,7 @@ services:
     volumes:
       - ~/git:/workspace:rw
       - ~/.claude:/home/node/.claude:rw
-      - ~/.claude.json:/home/node/.claude.json:rw
+      - ~/.claude.json:/tmp/.claude.json.host:ro
       - ~/.gitconfig:/home/node/.gitconfig:ro
       - ~/.config/gh/hosts.yml:/home/node/.config/gh/hosts.yml:ro
       - ~/.config/gh/config.yml:/home/node/.config/gh/config.yml:ro

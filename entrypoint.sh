@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+# Persist .claude.json inside ~/.claude/ (which is bind-mounted rw).
+# Single-file bind mounts corrupt on rewrite, so we store in the dir and symlink.
+if [ -f /tmp/.claude.json.host ] && [ ! -f "$HOME/.claude/.claude.json" ]; then
+    cp /tmp/.claude.json.host "$HOME/.claude/.claude.json"
+fi
+ln -sf "$HOME/.claude/.claude.json" "$HOME/.claude.json"
+
 # Fix SSH key permissions (bind-mounted as ro, may have wrong perms)
 if [ -d "$HOME/.ssh" ]; then
     mkdir -p /tmp/.ssh
@@ -27,8 +34,9 @@ else
 fi
 
 # Register Galaxy MCP server if not already configured
-if ! claude mcp list 2>/dev/null | grep -q "galaxy"; then
-    echo "Registering Galaxy MCP server..."
+if [ -f "$HOME/.claude/settings.json" ] && ! grep -q "galaxy" "$HOME/.claude/settings.json" 2>/dev/null; then
+    claude mcp add galaxy -- uvx galaxy-mcp 2>/dev/null || true
+elif [ ! -f "$HOME/.claude/settings.json" ]; then
     claude mcp add galaxy -- uvx galaxy-mcp 2>/dev/null || true
 fi
 

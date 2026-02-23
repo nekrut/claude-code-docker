@@ -4,7 +4,7 @@
 Dockerized Claude Code for macOS. Runs claude-code in isolated container with host filesystem access limited to `~/git`.
 
 ## Key architecture decisions
-- **Auth**: OAuth via bind-mounted `~/.claude/.credentials.json` (from `claude login` on host). No API key.
+- **Auth**: OAuth credentials extracted from macOS Keychain (`Claude Code-credentials`) by `run.sh` and written to `~/.claude/.credentials.json` before container start. Newer Claude Code versions store creds in Keychain, not file.
 - **GitHub auth**: `GH_TOKEN` env var from `.env` file. Host keyring not accessible from container, so `gh auth login` tokens don't work — must use personal access token with `repo` scope.
 - **Config**: Both `~/.claude/` (dir) and `~/.claude.json` (file) must be mounted — claude-code uses both.
 - **Persistence**: Named Docker volumes for pip (`~/.local`), conda (`/opt/conda`), uv cache. Survives container restarts.
