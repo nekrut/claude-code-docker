@@ -1,137 +1,120 @@
-# Claude Code in Docker
+# Claude Code in Docker (macOS)
 
-Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) inside a Docker container for filesystem isolation. Claude gets full internet access and can read/write your project files, but cannot touch anything else on your machine.
+Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in an isolated Docker container on macOS. Only `~/git` is visible to the container. Auth via bind-mounted `~/.claude` (OAuth from `claude login`, no API key needed).
 
-## What's in the container
-
-- Node.js 20 (required by Claude Code)
-- Claude Code CLI
-- git + GitHub CLI (`gh`)
-- Python 3, `uv`, Miniconda
-- [Galaxy MCP server](https://github.com/galaxyproject/galaxy-mcp) (pre-cached)
+Based on [nekrut/claude-docker-linux](https://github.com/nekrut/claude-docker-linux), adapted for macOS.
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Claude Code account (authenticated on host — see [First-time setup](#first-time-setup))
+- [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
+- `claude login` completed on host (creates `~/.claude/.credentials.json`)
 - GitHub CLI authenticated on host (`gh auth login`)
 - SSH keys in `~/.ssh/` (for git push)
+- GitHub personal access token with `repo` scope ([create here](https://github.com/settings/tokens)) for in-container `gh` usage
 
-## Quick start
+## Setup
 
+1. Clone and build:
 ```bash
-git clone https://github.com/nekrut/claude-code-docker.git
-cd claude-code-docker
-./run.sh              # interactive session + opens Sublime Text
-./run.sh -p "prompt"  # one-shot
+git clone https://github.com/nekrut/claude-code-docker.git ~/git/claude-code-docker
+cd ~/git/claude-code-docker
+cp .env.example .env
+docker compose build
 ```
 
-## First-time setup
-
-### 1. Authenticate Claude Code on your host
-
-```bash
-npm install -g @anthropic-ai/claude-code
-claude login
+2. Add credentials to `.env`:
+```
+GALAXY_URL=https://...
+GALAXY_API_KEY=sk-...
+GH_TOKEN=ghp_...
 ```
 
-This stores your auth token in `~/.claude/`, which gets bind-mounted into the container.
-
-### 2. Clone and place this repo inside your working directory
-
-The container mounts the **parent directory** of this repo as `/workspace`. So if your projects live in `~/git/`:
-
-```bash
-cd ~/git
-git clone https://github.com/nekrut/claude-code-docker.git
-```
-
-Now `~/git/` is mounted at `/workspace` inside the container, and all your repos are accessible.
-
-### 3. Galaxy API key (optional)
-
-If you use Galaxy, set your API key. On macOS you can store it in Keychain:
-
+Or store Galaxy API key in macOS Keychain:
 ```bash
 security add-generic-password -s "galaxy-api-key" -a galaxy -w "YOUR_KEY"
 ```
 
-Or export it before running:
+3. Add shell shortcut to `~/.zshrc`:
+```bash
+cdl() { subl --new-window "$(pwd)" & docker compose -f ~/git/claude-code-docker/docker-compose.yml run --rm claude "$@"; }
+```
+
+4. `source ~/.zshrc`
+
+## Usage
 
 ```bash
-export GALAXY_API_KEY="your-key"
-./run.sh
+cd ~/git/myproject
+cdl                          # opens Sublime + interactive Claude
+cdl -p "explain this repo"   # one-shot
 ```
 
-### 4. Build and run
-
+Or without the shortcut:
 ```bash
-./run.sh
+cd ~/git/claude-code-docker
+./run.sh                     # interactive session + opens Sublime Text
+./run.sh -p "prompt"         # one-shot
 ```
 
-First run builds the image (~1 min). Subsequent runs start instantly.
+## What's in the container
 
-## How it works
+- **Base**: node:20-bookworm
+- **Tools**: git, python3, gh, jq, curl, wget, sudo
+- **Python**: uv, Miniconda3
+- **AI**: claude-code (latest), galaxy-mcp (via uvx)
 
-### Volume mounts
+Claude runs with `--dangerously-skip-permissions` (container IS the sandbox).
 
-| Host | Container | Mode | Purpose |
-|------|-----------|------|---------|
-| Parent dir (e.g. `~/git`) | `/workspace` | rw | Your project files |
-| Parent dir | Original host path | ro | Resolves absolute symlinks |
-| `~/.claude` | `/home/node/.claude` | rw | Auth tokens, config, MCP settings |
-| `~/.gitconfig` | `/home/node/.gitconfig` | ro | Git identity |
-| `~/.config/gh` | `/home/node/.config/gh` | ro | GitHub CLI auth |
-| `~/.ssh` | `/home/node/.ssh` | ro | SSH keys |
+## Updating
 
-### Security model
-
-- Container provides filesystem isolation — Claude can only access mounted directories
-- `--dangerously-skip-permissions` is used because the container boundary **is** the sandbox
-- Secrets are passed as env vars at runtime, never baked into the image
-- SSH keys and git config are mounted read-only
-
-### What Claude can do inside the container
-
-- Read/write files in `/workspace` (your projects)
-- Git commit, push, pull via SSH
-- Access the internet (web search, API calls)
-- Use Galaxy MCP tools (search tools, run workflows, etc.)
-- Use GitHub CLI (`gh pr create`, etc.)
-
-### What Claude cannot do
-
-- Access files outside mounted directories
-- Modify your SSH keys or git config
-- Read other directories on your host machine
-
-## Customization
-
-### Mount additional directories
-
-Edit `docker-compose.yml` to add more volumes:
-
-```yaml
-volumes:
-  - ~/data:/data:ro  # read-only data directory
+Update claude-code and galaxy-mcp inside the container without rebuilding:
+```bash
+UPDATE=1 ./run.sh
 ```
 
-### Environment variables
-
-Set in `.env` or export before running:
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `GALAXY_URL` | `https://usegalaxy.org` | Galaxy server URL |
-| `GALAXY_API_KEY` | (empty) | Galaxy API key |
-| `ANTHROPIC_API_KEY` | (empty) | Only needed if not using `claude login` |
-
-### Sublime Text
-
-`run.sh` automatically opens Sublime Text with the working directory added as a project. It looks for `subl` on PATH, falling back to `/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl` on macOS. Skips silently if Sublime isn't installed.
-
-### Rebuild after changes
-
+Or rebuild the image entirely:
 ```bash
 docker compose build
 ```
+
+## GitHub auth
+
+The `gh` CLI inside the container uses `GH_TOKEN` from `.env`. Host-side keyring auth (default for `gh auth login`) is not accessible from the container — use a personal access token instead.
+
+## Volumes
+
+### Bind mounts (host filesystem)
+
+| Host | Container | Mode |
+|------|-----------|------|
+| `~/git` | `/workspace` | rw |
+| `~/.claude` | `/home/node/.claude` | rw |
+| `~/.claude.json` | `/home/node/.claude.json` | rw |
+| `~/.gitconfig` | `/home/node/.gitconfig` | ro |
+| `~/.config/gh/hosts.yml` | `/home/node/.config/gh/hosts.yml` | ro |
+| `~/.config/gh/config.yml` | `/home/node/.config/gh/config.yml` | ro |
+| `~/.ssh` | `/home/node/.ssh` | ro |
+
+### Named volumes (persist across container restarts)
+
+| Volume | Path | Purpose |
+|--------|------|---------|
+| `pip-local` | `/home/node/.local` | pip user packages |
+| `conda` | `/opt/conda` | conda environments |
+| `uv-cache` | `/home/node/.cache/uv` | uv/uvx cache |
+
+Packages installed via `pip install`, `conda install`, or `uv` persist across container restarts.
+
+## Entrypoint
+
+On each container start, `entrypoint.sh`:
+1. Copies SSH keys to writable dir with correct permissions
+2. Seeds conda volume from image (first run only)
+3. Clones or pulls latest galaxy-skills
+4. Registers Galaxy MCP server (if not already configured)
+5. Optionally updates claude-code and galaxy-mcp (when `UPDATE=1`)
+6. Launches `claude --dangerously-skip-permissions`
+
+## Multiple agents
+
+Each `docker compose run --rm claude` starts a separate container. Run multiple in parallel from different terminals. All share the same `~/git` workspace — coordinate by having agents work on different repos or branches.

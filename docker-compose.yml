@@ -1,24 +1,25 @@
 services:
   claude:
     build: .
-    container_name: claude-code
     stdin_open: true
     tty: true
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
-      # Working directories (read-write)
       - ~/git:/workspace:rw
-      # Symlink resolution: skills in ~/.claude may contain absolute symlinks
-      # pointing to the host git dir. Mount ro at original path so they resolve.
-      # Set HOST_GIT_DIR in .env to your actual path (e.g., /Users/yourname/git)
-      - ~/git:${HOST_GIT_DIR:-/host/git}:ro
-      # Claude config, sessions, MCP settings
       - ~/.claude:/home/node/.claude:rw
-      # Git identity
+      - ~/.claude.json:/home/node/.claude.json:rw
       - ~/.gitconfig:/home/node/.gitconfig:ro
-      # GitHub CLI auth
-      - ~/.config/gh:/home/node/.config/gh:ro
-      # SSH keys for git push
+      - ~/.config/gh/hosts.yml:/home/node/.config/gh/hosts.yml:ro
+      - ~/.config/gh/config.yml:/home/node/.config/gh/config.yml:ro
       - ~/.ssh:/home/node/.ssh:ro
+      - pip-local:/home/node/.local
+      - conda:/opt/conda
+      - uv-cache:/home/node/.cache/uv
     network_mode: bridge
+
+volumes:
+  pip-local:
+  conda:
+  uv-cache:
