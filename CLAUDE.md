@@ -23,11 +23,13 @@ Dockerized Claude Code for macOS. Runs claude-code in isolated container with ho
 - `.env` / `.env.example` — Galaxy credentials + GH_TOKEN (gitignored)
 
 ## Shell shortcuts (in ~/.zshrc)
-- `cdl` — opens Sublime on current dir + launches container. Can run multiple in parallel.
+- `cdl` — opens Sublime on current dir + launches container. No port mapping, can run multiple in parallel.
+- `cdlp` — same but with `--service-ports` to expose ports 9090 (Galaxy) and 4200 (Quarto). Only one at a time (port conflict otherwise).
 
 ## Gotchas
 - `docker-compose.yml` `env_file` must be `required: false` — `.env` may not exist if user runs `docker compose` directly without `run.sh`
 - Host user needs Docker Desktop for Mac installed and running.
 - After changing Dockerfile or entrypoint.sh, must `docker compose build` — entrypoint is COPYed into image.
-- `docker compose run` does NOT map ports by default — must use `--service-ports` flag if needed.
+- `docker compose run` does NOT map ports by default — must use `--service-ports` flag for Galaxy (9090) and Quarto preview (4200).
 - gh config directory mount shows empty inside container. Mount individual files instead.
+- Shell shortcuts (`cdl`/`cdlp`) require `source ~/.zshrc` or new terminal after adding to zshrc.

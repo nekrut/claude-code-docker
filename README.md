@@ -34,9 +34,10 @@ Or store Galaxy API key in macOS Keychain:
 security add-generic-password -s "galaxy-api-key" -a galaxy -w "YOUR_KEY"
 ```
 
-3. Add shell shortcut to `~/.zshrc`:
+3. Add shell shortcuts to `~/.zshrc`:
 ```bash
 cdl() { subl --new-window "$(pwd)" & docker compose -f ~/git/claude-code-docker/docker-compose.yml run --rm claude "$@"; }
+cdlp() { subl --new-window "$(pwd)" & docker compose -f ~/git/claude-code-docker/docker-compose.yml run --rm --service-ports claude "$@"; }
 ```
 
 4. `source ~/.zshrc`
@@ -45,8 +46,9 @@ cdl() { subl --new-window "$(pwd)" & docker compose -f ~/git/claude-code-docker/
 
 ```bash
 cd ~/git/myproject
-cdl                          # opens Sublime + interactive Claude
+cdl                          # opens Sublime + interactive Claude (no port mapping, can run multiple)
 cdl -p "explain this repo"   # one-shot
+cdlp                         # with ports 9090 + 4200 mapped (only one at a time)
 ```
 
 Or without the shortcut:
@@ -114,6 +116,15 @@ On each container start, `entrypoint.sh`:
 4. Registers Galaxy MCP server (if not already configured)
 5. Optionally updates claude-code and galaxy-mcp (when `UPDATE=1`)
 6. Launches `claude --dangerously-skip-permissions`
+
+## Ports
+
+| Port | Purpose |
+|------|---------|
+| 9090 | Galaxy web UI |
+| 4200 | Quarto preview |
+
+Ports are defined in `docker-compose.yml` but only mapped when using `--service-ports` (i.e., `cdlp`). Without it, multiple containers can run in parallel without port conflicts.
 
 ## Multiple agents
 
