@@ -12,9 +12,10 @@ if [ ! -f "$HOME/.claude/.credentials.json" ]; then
     fi
 fi
 
-# Galaxy API key: try macOS Keychain first, fall back to env var
+# Secrets from macOS Keychain (fall back to env vars)
 if command -v security &>/dev/null; then
     GALAXY_API_KEY="${GALAXY_API_KEY:-$(security find-generic-password -s "galaxy-api-key" -w 2>/dev/null || echo "")}"
+    GH_TOKEN="${GH_TOKEN:-$(security find-generic-password -s "gh-token" -w 2>/dev/null || echo "")}"
 fi
 
 # Write .env file
