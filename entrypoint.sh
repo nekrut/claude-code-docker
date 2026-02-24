@@ -48,9 +48,9 @@ elif [ ! -f "$HOME/.claude/settings.json" ]; then
     claude mcp add galaxy -- uvx galaxy-mcp 2>/dev/null || true
 fi
 
-# Skip auto-updates by default — they can interfere with startup.
-# Set UPDATE=1 to update claude-code and galaxy-mcp before launch.
-if [ "${UPDATE:-}" = "1" ]; then
+# Auto-update claude-code and galaxy-mcp on every startup.
+# Set SKIP_UPDATES=1 to skip.
+if [ "${SKIP_UPDATES:-}" != "1" ]; then
     echo "Updating claude-code..."
     sudo npm install -g @anthropic-ai/claude-code@latest 2>/dev/null || true
     echo "Updating galaxy-mcp..."
