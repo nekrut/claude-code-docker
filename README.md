@@ -10,7 +10,7 @@ Based on [nekrut/claude-docker-linux](https://github.com/nekrut/claude-docker-li
 - `claude login` completed on host (stores OAuth token in macOS Keychain)
 - GitHub CLI authenticated on host (`gh auth login`)
 - SSH keys in `~/.ssh/` (for git push)
-- GitHub personal access token with `repo` scope ([create here](https://github.com/settings/tokens)) for in-container `gh` usage
+- GitHub personal access token with `repo` scope ([create here](https://github.com/settings/tokens)) — stored in Keychain or `.env`
 
 ## Setup
 
@@ -22,16 +22,17 @@ cp .env.example .env
 docker compose build
 ```
 
-2. Add credentials to `.env`:
+2. Store secrets in macOS Keychain (recommended):
+```bash
+security add-generic-password -s "gh-token" -a github -w "ghp_YOUR_TOKEN"
+security add-generic-password -s "galaxy-api-key" -a galaxy -w "YOUR_KEY"
+```
+
+Or add them to `.env` directly:
 ```
 GALAXY_URL=https://...
 GALAXY_API_KEY=sk-...
 GH_TOKEN=ghp_...
-```
-
-Or store Galaxy API key in macOS Keychain:
-```bash
-security add-generic-password -s "galaxy-api-key" -a galaxy -w "YOUR_KEY"
 ```
 
 3. Add shell shortcuts to `~/.zshrc`:
@@ -82,7 +83,9 @@ docker compose build
 
 ## GitHub auth
 
-The `gh` CLI inside the container uses `GH_TOKEN` from `.env`. Host-side keyring auth (default for `gh auth login`) is not accessible from the container — use a personal access token instead.
+Host-side keyring auth (from `gh auth login`) is not accessible from the container. A personal access token is required for both `gh` CLI and `git push` over HTTPS.
+
+`run.sh` extracts `GH_TOKEN` from macOS Keychain (`gh-token`) and writes it to `.env`. The entrypoint configures git's credential helper via environment variables (since `~/.gitconfig` is mounted read-only).
 
 ## Volumes
 
@@ -113,11 +116,12 @@ Packages installed via `pip install`, `conda install`, or `uv` persist across co
 On each container start, `entrypoint.sh`:
 1. Symlinks `.claude.json` into `~/.claude/` for persistence (single-file bind mounts corrupt on rewrite)
 2. Copies SSH keys to writable dir with correct permissions
-3. Seeds conda volume from image (first run only)
-4. Clones or pulls latest galaxy-skills
-5. Registers Galaxy MCP server (if not already configured)
-6. Optionally updates claude-code and galaxy-mcp (when `UPDATE=1`)
-7. Launches `claude --dangerously-skip-permissions`
+3. Configures git credential helper from `GH_TOKEN` (for HTTPS push)
+4. Seeds conda volume from image (first run only)
+5. Clones or pulls latest galaxy-skills
+6. Registers Galaxy MCP server (if not already configured)
+7. Optionally updates claude-code and galaxy-mcp (when `UPDATE=1`)
+8. Launches `claude --dangerously-skip-permissions`
 
 ## Ports
 
