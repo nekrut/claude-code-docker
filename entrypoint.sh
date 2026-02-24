@@ -18,6 +18,14 @@ if [ -d "$HOME/.ssh" ]; then
     export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 -i /tmp/.ssh/id_rsa 2>/dev/null"
 fi
 
+# Configure git to use GH_TOKEN for HTTPS push
+if [ -n "$GH_TOKEN" ]; then
+    echo -e "[credential]\n\thelper = !f() { echo username=x-access-token; echo password=\$GH_TOKEN; }; f" > /tmp/.gitconfig-credentials
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0=credential.helper
+    export GIT_CONFIG_VALUE_0='!f() { echo "username=x-access-token"; echo "password=$GH_TOKEN"; }; f'
+fi
+
 # Seed conda volume on first run (named volume starts empty)
 if [ ! -f /opt/conda/bin/conda ]; then
     echo "Seeding conda volume from image..."
